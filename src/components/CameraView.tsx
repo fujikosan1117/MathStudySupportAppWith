@@ -114,6 +114,16 @@ export default function CameraView({ visible, onCapture, onClose }: CameraViewPr
         style={{ display: 'none' }}
       />
 
+      {/* video は常にDOMに存在させ、refを確保する */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="camera-video"
+        style={{ display: cameraReady && !cameraError ? 'block' : 'none' }}
+      />
+
       {cameraError || !cameraReady ? (
         <div className="camera-permission">
           <div className="hex-icon-wrap">
@@ -146,14 +156,6 @@ export default function CameraView({ visible, onCapture, onClose }: CameraViewPr
         </div>
       ) : (
         <div className="camera-container">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="camera-video"
-          />
-
           <div className="camera-guide-overlay">
             <RectGuideFrame />
             <span className="camera-guide-text">問題をフレーム内に収めてください</span>
