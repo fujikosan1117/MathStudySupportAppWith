@@ -694,12 +694,14 @@ input {
 .camera-container {
   flex: 1;
   position: relative;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
 }
 
 .camera-video {
-  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
   object-fit: cover;
 }
 
@@ -710,19 +712,22 @@ input {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding-bottom: 120px;
 }
 
 .camera-guide-frame {
   position: relative;
-  width: 82%;
-  aspect-ratio: 1 / 1.3;
+  width: min(85vw, 360px);
+  height: min(55vh, 480px);
+  max-width: 90%;
+  max-height: 60%;
 }
 
 .camera-corner {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  border-color: rgba(255, 255, 255, 0.6);
+  width: 32px;
+  height: 32px;
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .camera-corner-tl {
@@ -766,18 +771,24 @@ input {
 }
 
 .camera-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32px;
-  background: #000;
+  padding: 20px 24px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 30%);
 }
 
 .camera-close-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px;
+  padding: 12px;
+  min-width: 80px;
   transition: opacity 0.1s;
 }
 
@@ -793,18 +804,19 @@ input {
 }
 
 .camera-capture-button {
-  width: 72px;
-  height: 72px;
-  border-radius: 36px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: opacity 0.1s;
+  transition: transform 0.1s, opacity 0.1s;
 }
 
 .camera-capture-button:active {
   opacity: 0.7;
+  transform: scale(0.92);
 }
 
 .camera-capture-button:disabled {
@@ -812,7 +824,9 @@ input {
 }
 
 .camera-spacer {
-  width: 80px;
+  min-width: 80px;
+  display: flex;
+  justify-content: center;
 }
 
 .camera-permission {
@@ -1333,4 +1347,88 @@ input {
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: processingRotate 0.8s linear infinite;
+}
+
+/* ============================
+   17. Responsive / Device
+   ============================ */
+
+/* Small phones (SE, mini) — height <= 700px */
+@media (max-height: 700px) {
+  .camera-guide-frame {
+    width: min(80vw, 300px);
+    height: min(45vh, 340px);
+  }
+  .camera-guide-overlay {
+    padding-bottom: 100px;
+  }
+  .camera-controls {
+    padding: 14px 20px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .camera-capture-button {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+/* Tall phones (Pro Max, Ultra) — height >= 850px */
+@media (min-height: 850px) {
+  .camera-guide-frame {
+    width: min(85vw, 380px);
+    height: min(50vh, 520px);
+  }
+  .camera-guide-overlay {
+    padding-bottom: 140px;
+  }
+  .camera-capture-button {
+    width: 74px;
+    height: 74px;
+  }
+}
+
+/* Tablets & desktop — width >= 768px */
+@media (min-width: 768px) {
+  .camera-guide-frame {
+    width: min(50vw, 440px);
+    height: min(50vh, 560px);
+  }
+  .camera-guide-overlay {
+    padding-bottom: 130px;
+  }
+  .camera-controls {
+    padding: 24px 48px;
+    max-width: 600px;
+    margin: 0 auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+  }
+  .camera-corner {
+    width: 40px;
+    height: 40px;
+  }
+  .camera-guide-text {
+    font-size: 14px;
+    margin-top: 20px;
+  }
+}
+
+/* Landscape orientation */
+@media (orientation: landscape) and (max-height: 500px) {
+  .camera-guide-frame {
+    width: min(40vw, 320px);
+    height: min(70vh, 300px);
+  }
+  .camera-guide-overlay {
+    padding-bottom: 80px;
+  }
+  .camera-controls {
+    padding: 10px 24px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .camera-capture-button {
+    width: 54px;
+    height: 54px;
+  }
 }
