@@ -1,7 +1,11 @@
 # Dependencies
 node_modules/
 
-# Expo
+# Next.js
+.next/
+out/
+
+# Expo (legacy)
 .expo/
 dist/
 *.jks
@@ -16,9 +20,8 @@ dist/
 .env.local
 .env.*.local
 
-# Backend build
-backend/dist/
-backend/.env
+# Type declarations (auto-generated)
+next-env.d.ts
 
 # OS
 .DS_Store

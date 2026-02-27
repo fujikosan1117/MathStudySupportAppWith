@@ -1,9 +1,3 @@
-/**
- * prompts.ts (バックエンド) — 各モードのシステムプロンプト定義
- *
- * Gemini API に送信するプロンプトを定義。
- * analyze ルートでモードに応じたプロンプトが選択される。
- */
 type AppMode = 'SOLVE' | 'GRADE' | 'OCR' | 'ANKI';
 
 export const SYSTEM_PROMPTS: Record<AppMode, string> = {

@@ -1,24 +1,7 @@
-/**
- * CameraView.tsx — カメラ撮影モーダル
- *
- * expo-camera の CameraView を Modal 内で表示し、
- * 撮影した写真を base64 で親コンポーネントに返す。
- * 四隅コーナーブラケットのガイドフレーム付き。
- */
-import React, { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Modal,
-  Dimensions,
-} from 'react-native';
-import { CameraView as ExpoCameraView, useCameraPermissions } from 'expo-camera';
-import { Hexagon, C } from './HexUI';
+'use client';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Hexagon, C } from './HexUI';
 
 interface CameraViewProps {
   visible: boolean;
@@ -26,224 +9,187 @@ interface CameraViewProps {
   onClose: () => void;
 }
 
-// 矩形コーナーブラケット ガイドフレーム
 function RectGuideFrame() {
-  const w = SCREEN_WIDTH * 0.82;
-  const h = w * 1.3;
-  const corner = 28;
-  const borderColor = 'rgba(255,255,255,0.6)';
-  const borderWidth = 2.5;
-
-  const cornerStyle = {
-    position: 'absolute' as const,
-    width: corner,
-    height: corner,
-    borderColor,
-  };
-
   return (
-    <View style={{ width: w, height: h }}>
-      <View style={[cornerStyle, { top: 0, left: 0, borderTopWidth: borderWidth, borderLeftWidth: borderWidth }]} />
-      <View style={[cornerStyle, { top: 0, right: 0, borderTopWidth: borderWidth, borderRightWidth: borderWidth }]} />
-      <View style={[cornerStyle, { bottom: 0, left: 0, borderBottomWidth: borderWidth, borderLeftWidth: borderWidth }]} />
-      <View style={[cornerStyle, { bottom: 0, right: 0, borderBottomWidth: borderWidth, borderRightWidth: borderWidth }]} />
-    </View>
+    <div className="camera-guide-frame">
+      <div className="camera-corner camera-corner-tl" />
+      <div className="camera-corner camera-corner-tr" />
+      <div className="camera-corner camera-corner-bl" />
+      <div className="camera-corner camera-corner-br" />
+    </div>
   );
 }
 
 export default function CameraView({ visible, onCapture, onClose }: CameraViewProps) {
-  const [permission, requestPermission] = useCameraPermissions();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTaking, setIsTaking] = useState(false);
-  const cameraRef = useRef<ExpoCameraView>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
 
-  const handleCapture = async () => {
-    if (!cameraRef.current || isTaking) return;
-    setIsTaking(true);
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(false);
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-        quality: 0.8,
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
       });
-      if (photo?.base64) {
-        onCapture(photo.base64);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => setCameraReady(true);
       }
-    } catch (error) {
-      console.error('Capture failed:', error);
-    } finally {
-      setIsTaking(false);
+    } catch {
+      setCameraError(true);
     }
+  }, []);
+
+  useEffect(() => {
+    if (visible) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [visible, startCamera, stopCamera]);
+
+  const handleCapture = () => {
+    if (!videoRef.current || !canvasRef.current || isTaking) return;
+    setIsTaking(true);
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { setIsTaking(false); return; }
+
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    stopCamera();
+    onCapture(base64);
+    setIsTaking(false);
   };
 
-  const renderContent = () => {
-    if (!permission) {
-      return <ActivityIndicator size="large" color="#FFFFFF" />;
-    }
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (!permission.granted) {
-      return (
-        <View style={styles.permissionContainer}>
-          <View style={styles.permHexWrap}>
-            <Hexagon size={56} stroke={C.dimLight} strokeWidth={1.5} />
-            <View style={styles.permHexInner}>
-              <Text style={styles.permHexIcon}>📷</Text>
-            </View>
-          </View>
-          <Text style={styles.permissionText}>
-            問題を撮影するためにカメラの許可が必要です。
-          </Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-            <Text style={styles.permissionButtonText}>⬡ カメラを許可する</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.cameraContainer}>
-        <ExpoCameraView ref={cameraRef} style={styles.camera} facing="back" />
-
-        {/* スキャンガイド */}
-        <View style={styles.overlay}>
-          <RectGuideFrame />
-          <Text style={styles.guideText}>問題をフレーム内に収めてください</Text>
-        </View>
-
-        {/* 下部コントロール */}
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <View style={styles.closeBtnInner}>
-              <Hexagon size={18} stroke={C.dimLight} />
-            </View>
-            <Text style={styles.closeButtonText}>CANCEL</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.captureButton, isTaking && styles.captureButtonDisabled]}
-            onPress={handleCapture}
-            disabled={isTaking}
-          >
-            {isTaking ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Hexagon size={40} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={2} />
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.spacer} />
-        </View>
-      </View>
-    );
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+      stopCamera();
+      onCapture(base64);
+    };
+    reader.readAsDataURL(file);
   };
+
+  const handleClose = () => {
+    stopCamera();
+    onClose();
+  };
+
+  if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent>
-      <View style={styles.modalContainer}>{renderContent()}</View>
-    </Modal>
+    <div className="camera-overlay">
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileUpload}
+        style={{ display: 'none' }}
+      />
+
+      {cameraError || !cameraReady ? (
+        <div className="camera-permission">
+          <div className="hex-icon-wrap">
+            <Hexagon size={56} stroke={C.dimLight} strokeWidth={1.5} />
+            <span className="hex-icon-inner" style={{ fontSize: 24 }}>📷</span>
+          </div>
+          {cameraError ? (
+            <>
+              <span className="camera-permission-text">
+                カメラにアクセスできませんでした。<br />
+                ファイルから画像をアップロードしてください。
+              </span>
+              <button
+                className="camera-permission-button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                ⬡ 画像をアップロード
+              </button>
+            </>
+          ) : (
+            <span className="camera-permission-text">カメラを起動中...</span>
+          )}
+          <button
+            className="camera-upload-button"
+            style={{ marginTop: 16 }}
+            onClick={handleClose}
+          >
+            キャンセル
+          </button>
+        </div>
+      ) : (
+        <div className="camera-container">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="camera-video"
+          />
+
+          <div className="camera-guide-overlay">
+            <RectGuideFrame />
+            <span className="camera-guide-text">問題をフレーム内に収めてください</span>
+          </div>
+
+          <div className="camera-controls">
+            <button className="camera-close-button" onClick={handleClose}>
+              <span className="back-hex">
+                <Hexagon size={18} stroke={C.dimLight} />
+              </span>
+              <span className="camera-close-text">CANCEL</span>
+            </button>
+
+            <button
+              className="camera-capture-button"
+              onClick={handleCapture}
+              disabled={isTaking}
+            >
+              {isTaking ? (
+                <span className="spinner" />
+              ) : (
+                <Hexagon size={40} fill="#FFFFFF" stroke="#FFFFFF" strokeWidth={2} />
+              )}
+            </button>
+
+            <div className="camera-spacer">
+              <button
+                className="camera-upload-button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                📁 FILE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#000000',
-    gap: 16,
-  },
-  permHexWrap: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  permHexInner: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  permHexIcon: {
-    fontSize: 24,
-  },
-  permissionText: {
-    color: '#888888',
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  permissionButton: {
-    backgroundColor: '#111111',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  cameraContainer: {
-    flex: 1,
-  },
-  camera: {
-    flex: 1,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  guideText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginTop: 16,
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 32,
-    paddingVertical: 32,
-    backgroundColor: '#000',
-  },
-  closeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  closeBtnInner: {
-    opacity: 0.6,
-  },
-  closeButtonText: {
-    color: '#888888',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  captureButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonDisabled: {
-    opacity: 0.6,
-  },
-  spacer: {
-    width: 80,
-  },
-});

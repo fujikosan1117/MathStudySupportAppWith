@@ -1,22 +1,7 @@
-/**
- * AnkiExport.tsx — Anki カード一覧表示 + CSV エクスポート
- *
- * Gemini が生成した表裏カードをリスト表示し、
- * タップでカードの裏面を確認できる。
- * CSV ボタンで Anki インポート用ファイルを expo-sharing で共有する。
- */
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import { Hexagon, HexDivider, C } from './HexUI';
+'use client';
+
+import { useState } from 'react';
+import { Hexagon, C } from './HexUI';
 
 interface AnkiCard {
   front: string;
@@ -31,12 +16,11 @@ export default function AnkiExport({ cards }: AnkiExportProps) {
   const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = () => {
     if (cards.length === 0) return;
     setIsExporting(true);
 
     try {
-      // Anki 標準の CSV 形式 (front,back)
       const csvRows = cards.map((card) => {
         const front = card.front.replace(/"/g, '""');
         const back = card.back.replace(/"/g, '""');
@@ -44,24 +28,16 @@ export default function AnkiExport({ cards }: AnkiExportProps) {
       });
       const csvContent = csvRows.join('\n');
 
-      const filePath = `${FileSystem.documentDirectory}anki_cards.csv`;
-      await FileSystem.writeAsStringAsync(filePath, csvContent, {
-        encoding: 'utf8',
-      });
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: 'text/csv',
-          UTI: 'public.comma-separated-values-text',
-          dialogTitle: 'Anki カードをエクスポート',
-        });
-      } else {
-        Alert.alert('エクスポート完了', `保存先: ${filePath}`);
-      }
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'anki_cards.csv';
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (error) {
-      Alert.alert('エラー', 'エクスポートに失敗しました。');
       console.error('Export failed:', error);
+      window.alert('エクスポートに失敗しました。');
     } finally {
       setIsExporting(false);
     }
@@ -69,243 +45,74 @@ export default function AnkiExport({ cards }: AnkiExportProps) {
 
   if (cards.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyHexWrap}>
+      <div className="anki-empty">
+        <div className="hex-icon-wrap">
           <Hexagon size={56} stroke={C.dimLight} strokeWidth={1.5} />
-          <View style={styles.emptyHexInner}>
-            <Text style={styles.emptyIcon}>🃏</Text>
-          </View>
-        </View>
-        <Text style={styles.emptyText}>カードが生成されませんでした。</Text>
-        <Text style={styles.emptySubText}>別の画像で試してみてください。</Text>
-      </View>
+          <span className="hex-icon-inner" style={{ fontSize: 24 }}>🃏</span>
+        </div>
+        <span className="anki-empty-text">カードが生成されませんでした。</span>
+        <span className="anki-empty-sub">別の画像で試してみてください。</span>
+      </div>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* ヘッダー */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.headerHexWrap}>
+    <div className="anki-container">
+      <div className="anki-header">
+        <div className="anki-header-left">
+          <div className="anki-header-hex-wrap">
             <Hexagon size={28} fill={C.surface} stroke={C.dimLight} strokeWidth={1} />
-            <View style={styles.headerHexInner}>
-              <Text style={styles.headerHexIcon}>🃏</Text>
-            </View>
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>ANKI CARDS</Text>
-            <Text style={styles.headerCount}>{cards.length} 枚生成</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={[styles.exportButton, isExporting && styles.exportButtonDisabled]}
-          onPress={handleExportCSV}
+            <span className="anki-header-hex-inner">🃏</span>
+          </div>
+          <div>
+            <div className="anki-header-title">ANKI CARDS</div>
+            <div className="anki-header-count">{cards.length} 枚生成</div>
+          </div>
+        </div>
+        <button
+          className="anki-export-button"
+          onClick={handleExportCSV}
           disabled={isExporting}
         >
-          <Text style={styles.exportButtonText}>
-            {isExporting ? '処理中...' : '⬡ CSV'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {isExporting ? '処理中...' : '⬡ CSV'}
+        </button>
+      </div>
 
-      {/* カードリスト */}
-      <ScrollView
-        style={styles.cardList}
-        contentContainerStyle={styles.cardListContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.hintText}>カードをタップすると裏面を確認できます</Text>
+      <div className="anki-hint">カードをタップすると裏面を確認できます</div>
+      <div className="anki-card-list">
         {cards.map((card, index) => {
           const isFlipped = flippedIndex === index;
           return (
-            <TouchableOpacity
+            <button
               key={index}
-              style={[styles.card, isFlipped && styles.cardFlipped]}
-              onPress={() => setFlippedIndex(isFlipped ? null : index)}
-              activeOpacity={0.8}
+              className={`anki-card ${isFlipped ? 'anki-card-flipped' : ''}`}
+              onClick={() => setFlippedIndex(isFlipped ? null : index)}
             >
-              <View style={styles.cardHeader}>
-                <View style={styles.cardIndexHex}>
+              <div className="anki-card-header">
+                <div className="anki-card-index-hex">
                   <Hexagon
                     size={22}
                     fill={isFlipped ? C.accent : C.surface}
                     stroke={isFlipped ? C.accent : C.dim}
                     strokeWidth={1}
                   />
-                  <View style={styles.cardIndexInner}>
-                    <Text style={[styles.cardIndexText, isFlipped && styles.cardIndexTextFlipped]}>
+                  <span className={`anki-card-index-inner ${isFlipped ? 'anki-card-index-text-flipped' : ''}`}>
+                    <span className={`anki-card-index-text ${isFlipped ? 'anki-card-index-text-flipped' : ''}`}>
                       {index + 1}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.cardSide}>{isFlipped ? '裏面 (答え)' : '表面 (問い)'}</Text>
-              </View>
-              <Text style={[styles.cardText, isFlipped && styles.cardTextBack]}>
+                    </span>
+                  </span>
+                </div>
+                <span className="anki-card-side">
+                  {isFlipped ? '裏面 (答え)' : '表面 (問い)'}
+                </span>
+              </div>
+              <p className={`anki-card-text ${isFlipped ? 'anki-card-text-back' : ''}`}>
                 {isFlipped ? card.back : card.front}
-              </Text>
-            </TouchableOpacity>
+              </p>
+            </button>
           );
         })}
-      </ScrollView>
-    </View>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#111111',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerHexWrap: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerHexInner: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerHexIcon: {
-    fontSize: 13,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-  },
-  headerCount: {
-    fontSize: 11,
-    color: '#888888',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  exportButton: {
-    backgroundColor: '#111111',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  exportButtonDisabled: {
-    opacity: 0.6,
-  },
-  exportButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  hintText: {
-    fontSize: 12,
-    color: '#555555',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  cardList: {
-    flex: 1,
-  },
-  cardListContent: {
-    gap: 10,
-    paddingBottom: 16,
-  },
-  card: {
-    backgroundColor: '#111111',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    minHeight: 80,
-  },
-  cardFlipped: {
-    backgroundColor: '#1A1A1A',
-    borderColor: '#FFFFFF',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  cardIndexHex: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardIndexInner: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardIndexText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#888888',
-  },
-  cardIndexTextFlipped: {
-    color: '#000000',
-  },
-  cardSide: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#555555',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  cardText: {
-    fontSize: 16,
-    color: '#E0E0E0',
-    lineHeight: 24,
-    paddingLeft: 32,
-  },
-  cardTextBack: {
-    color: '#FFFFFF',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-    gap: 8,
-  },
-  emptyHexWrap: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  emptyHexInner: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyIcon: {
-    fontSize: 24,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#CCCCCC',
-  },
-  emptySubText: {
-    fontSize: 13,
-    color: '#555555',
-  },
-});

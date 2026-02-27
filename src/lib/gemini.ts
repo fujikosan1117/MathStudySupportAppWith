@@ -1,30 +1,8 @@
-/**
- * gemini.ts — Gemini API 呼び出しサービス
- *
- * base64 画像 + プロンプトを Gemini 2.5 Flash に送信し、
- * モードに応じたレスポンスを構築する:
- *  - ANKI:  JSON カード配列を抽出
- *  - GRADE: "score: XX" パターンからスコアを抽出
- *  - その他: テキストをそのまま返す
- *
- * 90 秒タイムアウト / maxOutputTokens: 8192
- */
-export interface GeminiResponse {
-  success: boolean;
-  data: {
-    content: string;
-    score?: number;
-    ankiCards?: { front: string; back: string }[];
-  };
-  error?: string;
-}
+import type { GeminiResponse } from '@/types';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL = 'gemini-2.5-flash';
 
-/**
- * base64 文字列から data URL プレフィックスを除去し、MIMEタイプを判別する
- */
 function parseBase64Image(base64Image: string): { data: string; mimeType: string } {
   const dataUrlPattern = /^data:(image\/\w+);base64,(.+)$/;
   const match = base64Image.match(dataUrlPattern);
@@ -34,9 +12,6 @@ function parseBase64Image(base64Image: string): { data: string; mimeType: string
   return { mimeType: 'image/jpeg', data: base64Image };
 }
 
-/**
- * ANKI モード: レスポンスから JSON カード配列を抽出する
- */
 function extractAnkiCards(text: string): { front: string; back: string }[] {
   const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
   const jsonString = codeBlockMatch ? codeBlockMatch[1] : text;
@@ -48,7 +23,7 @@ function extractAnkiCards(text: string): { front: string; back: string }[] {
     const parsed = JSON.parse(arrayMatch[0]);
     if (
       Array.isArray(parsed) &&
-      parsed.every((item) => typeof item.front === 'string' && typeof item.back === 'string')
+      parsed.every((item: { front: unknown; back: unknown }) => typeof item.front === 'string' && typeof item.back === 'string')
     ) {
       return parsed;
     }
@@ -58,9 +33,6 @@ function extractAnkiCards(text: string): { front: string; back: string }[] {
   return [];
 }
 
-/**
- * GRADE モード: "score: XX" パターンからスコアを抽出する
- */
 function extractScore(text: string): number | undefined {
   const match = text.match(/score[：:\s]+(\d+)/i);
   if (match) {
@@ -72,9 +44,6 @@ function extractScore(text: string): number | undefined {
   return undefined;
 }
 
-/**
- * 画像を Gemini API で解析し、GeminiResponse 形式で返す
- */
 export async function analyzeImage(
   base64Image: string,
   prompt: string,

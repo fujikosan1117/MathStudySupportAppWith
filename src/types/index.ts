@@ -1,10 +1,3 @@
-/**
- * types/index.ts — アプリ全体で共有する型定義
- *
- * AppMode:        4 つの解析モード (解く / 採点 / OCR / Anki)
- * GeminiResponse: バックエンド → フロントエンドの統一レスポンス型
- * CapturePayload: フロントエンド → バックエンドへ送る撮影データ
- */
 export type AppMode = 'SOLVE' | 'GRADE' | 'OCR' | 'ANKI';
 
 export interface GeminiResponse {
