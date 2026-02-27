@@ -33,9 +33,10 @@ function StatusBadge({ connected }: { connected: boolean }) {
 
 interface SettingsScreenProps {
   onBack: () => void;
+  onNavigateGuide?: () => void;
 }
 
-export default function SettingsScreen({ onBack }: SettingsScreenProps) {
+export default function SettingsScreen({ onBack, onNavigateGuide }: SettingsScreenProps) {
   const { width, height } = useWindowSize();
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -204,6 +205,13 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
         </div>
 
         <HexRowDecoration />
+
+        {onNavigateGuide && (
+          <button className="guide-link-button" onClick={onNavigateGuide}>
+            <Hexagon size={16} stroke={C.dimLight} />
+            <span className="guide-link-text">📖 使い方を見る</span>
+          </button>
+        )}
       </div>
     </div>
   );

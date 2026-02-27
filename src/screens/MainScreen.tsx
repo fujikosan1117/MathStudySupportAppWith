@@ -6,6 +6,7 @@ import CameraView from '../components/CameraView';
 import ResultView from '../components/ResultView';
 import ProcessingView from '../components/ProcessingView';
 import SettingsScreen from './SettingsScreen';
+import GuideScreen from './GuideScreen';
 import { AppMode } from '../types';
 import {
   HexGridBackground,
@@ -17,7 +18,7 @@ import {
   useWindowSize,
 } from '../components/HexUI';
 
-type ScreenState = 'home' | 'camera' | 'processing' | 'result' | 'settings';
+type ScreenState = 'home' | 'camera' | 'processing' | 'result' | 'settings' | 'guide';
 
 const MODE_LIST: {
   key: AppMode;
@@ -81,6 +82,15 @@ export default function MainScreen() {
     setScreen('home');
   };
 
+  // ガイド画面
+  if (screen === 'guide') {
+    return (
+      <div className="app-container">
+        <GuideScreen onBack={() => setScreen('home')} />
+      </div>
+    );
+  }
+
   // 設定画面
   if (screen === 'settings') {
     return (
@@ -90,6 +100,7 @@ export default function MainScreen() {
             loadApiKey();
             setScreen('home');
           }}
+          onNavigateGuide={() => setScreen('guide')}
         />
       </div>
     );
@@ -127,9 +138,14 @@ export default function MainScreen() {
           <Hexagon size={20} stroke={C.dimLight} strokeWidth={1.5} />
           <span className="header-title">STUDY PARTNER</span>
         </div>
-        <button className="settings-button" onClick={() => setScreen('settings')}>
-          ⚙️
-        </button>
+        <div className="header-right">
+          <button className="guide-button" onClick={() => setScreen('guide')}>
+            ?
+          </button>
+          <button className="settings-button" onClick={() => setScreen('settings')}>
+            ⚙️
+          </button>
+        </div>
       </div>
 
       {/* モードカード一覧 */}
