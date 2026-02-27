@@ -353,6 +353,8 @@ input {
    ============================ */
 .settings-container {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--c-bg);
@@ -905,6 +907,8 @@ input {
    ============================ */
 .result-container {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--c-bg);
